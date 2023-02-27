@@ -19,23 +19,19 @@ import (
 
 var personCollection *mongo.Collection = database.Collection(database.MongoClient, "table")
 var validate = validator.New()
+var magicNumber = 14
 
 func HashPassword(password string) string {
-	bytes, _ := bcrypt.GenerateFromPassword([]byte(password), 14)
+	bytes, _ := bcrypt.GenerateFromPassword([]byte(password), magicNumber)
 	return string(bytes)
 }
 
 func VerifyPassword(password string, providedPassword string) (bool, string) {
-	err := bcrypt.CompareHashAndPassword([]byte(providedPassword), []byte(password))
-	check := true
-	msg := ""
-
-	if err != nil {
-		check = false
-		msg = "password is incorrect"
+	if err := bcrypt.CompareHashAndPassword([]byte(providedPassword), []byte(password)); err != nil {
+		return false, "password is incorrect"
 	}
 
-	return check, msg
+	return true, ""
 }
 
 func SignUp() gin.HandlerFunc {
@@ -60,6 +56,7 @@ func SignUp() gin.HandlerFunc {
 		person.ID = primitive.NewObjectID()
 
 		hashedPassword := HashPassword(*person.Password)
+		c.JSON(http.StatusOK, hashedPassword)
 		person.Password = &hashedPassword
 
 		token, refreshToken := helper.GenerateAllTokens(*person.Email, *person.FirstName, *person.LastName, *person.UserType, *&person.UserId)
