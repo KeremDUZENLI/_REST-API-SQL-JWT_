@@ -2,15 +2,15 @@ package helper
 
 import (
 	"context"
-	"jwt-project/database"
 	"log"
-	"os"
 	"time"
+
+	"jwt-project/database"
+	"jwt-project/models"
 
 	"github.com/dgrijalva/jwt-go"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
@@ -22,9 +22,6 @@ type SignedDetails struct {
 	Uid       string
 	jwt.StandardClaims
 }
-
-var personCollection *mongo.Collection = database.Collection(database.MongoClient, "table")
-var SECRET_KEY string = os.Getenv("SECRET_KEY")
 
 func GenerateAllTokens(firstName string, lastName string, email string, userType string, uid string) (signedToken string, signedRefreshToken string) {
 	claims := &SignedDetails{
@@ -44,8 +41,8 @@ func GenerateAllTokens(firstName string, lastName string, email string, userType
 		},
 	}
 
-	token, _ := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte(SECRET_KEY))
-	refreshToken, _ := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims).SignedString([]byte(SECRET_KEY))
+	token, _ := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte(models.SECRET_KEY))
+	refreshToken, _ := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims).SignedString([]byte(models.SECRET_KEY))
 
 	return token, refreshToken
 }
@@ -55,7 +52,7 @@ func ValidateToken(signedToken string) (claims *SignedDetails, msg string) {
 		signedToken,
 		&SignedDetails{},
 		func(token *jwt.Token) (interface{}, error) {
-			return []byte(SECRET_KEY), nil
+			return []byte(models.SECRET_KEY), nil
 		},
 	)
 
@@ -89,7 +86,7 @@ func UpdateAllTokens(signedToken string, signedRefreshToken string, userId strin
 		Upsert: &upsert,
 	}
 
-	_, err := personCollection.UpdateOne(
+	_, err := database.Collection(database.Database(), "table").UpdateOne(
 		ctx,
 		filter,
 		bson.D{
