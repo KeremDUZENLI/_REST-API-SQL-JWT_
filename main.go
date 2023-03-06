@@ -3,13 +3,13 @@ package main
 import (
 	"os"
 
-	"github.com/joho/godotenv"
+	"jwt-project/common/env"
 
 	"jwt-project/routes"
 )
 
 func main() {
-	godotenv.Load(".env")
+	env.Load()
 
 	port := os.Getenv("PORT")
 

@@ -2,9 +2,10 @@ package service
 
 import (
 	"context"
+	"jwt-project/common/constants"
 	"jwt-project/database"
+	"jwt-project/database/model"
 	"jwt-project/helper"
-	"jwt-project/models"
 	"jwt-project/repository"
 	"net/http"
 	"time"
@@ -17,7 +18,7 @@ import (
 
 func InsertInDatabase(c *gin.Context) {
 	var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
-	var person models.Person
+	var person model.Person
 	defer cancel()
 
 	c.BindJSON(&person)
@@ -41,24 +42,25 @@ func InsertInDatabase(c *gin.Context) {
 
 func FindInDatabase(c *gin.Context) {
 	var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
-	var person models.Person
-	var foundPerson models.Person
+	var person model.Person
 	defer cancel()
-
 	c.BindJSON(&person)
 
-	if repository.IsValidEmail(c, ctx, person, &foundPerson) || repository.IsValidPassword(c, person, foundPerson) {
+	foundPerson := model.Find(ctx, person)
+
+	if !foundPerson.IsValidEmail(*person.Email) || !foundPerson.IsValidPassword(*person.Password) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "email or password is not valid"})
 		return
 	}
 
-	repository.Update(ctx, foundPerson)
+	repository.Update(ctx, *foundPerson)
 
 	c.JSON(http.StatusOK, &foundPerson)
 }
 
 func GetFromDatabase(c *gin.Context) {
 	var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
-	var person models.Person
+	var person model.Person
 	defer cancel()
 
 	personId := c.Param("userid")
@@ -68,7 +70,7 @@ func GetFromDatabase(c *gin.Context) {
 		return
 	}
 
-	err := database.Collection(database.Database(), models.TABLE).FindOne(ctx, bson.M{"userid": personId}).Decode(&person)
+	err := database.Collection(database.Database(), constants.TABLE).FindOne(ctx, bson.M{"userid": personId}).Decode(&person)
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -82,7 +84,7 @@ func GetallFromDatabase(c *gin.Context) {
 	var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
 	defer cancel()
 
-	if err := helper.CheckPersonType(c, models.ADMIN); err != nil {
+	if err := helper.CheckPersonType(c, constants.ADMIN); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}

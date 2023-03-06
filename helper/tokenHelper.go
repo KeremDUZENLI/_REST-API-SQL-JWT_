@@ -6,7 +6,8 @@ import (
 	"time"
 
 	"jwt-project/database"
-	"jwt-project/models"
+
+	"jwt-project/common/env"
 
 	"github.com/dgrijalva/jwt-go"
 	"go.mongodb.org/mongo-driver/bson"
@@ -41,8 +42,8 @@ func GenerateAllTokens(firstName string, lastName string, email string, userType
 		},
 	}
 
-	token, _ := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte(models.SECRET_KEY))
-	refreshToken, _ := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims).SignedString([]byte(models.SECRET_KEY))
+	token, _ := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte(env.SECRET_KEY))
+	refreshToken, _ := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims).SignedString([]byte(env.SECRET_KEY))
 
 	return token, refreshToken
 }
@@ -52,7 +53,7 @@ func ValidateToken(signedToken string) (claims *SignedDetails, msg string) {
 		signedToken,
 		&SignedDetails{},
 		func(token *jwt.Token) (interface{}, error) {
-			return []byte(models.SECRET_KEY), nil
+			return []byte(env.SECRET_KEY), nil
 		},
 	)
 
