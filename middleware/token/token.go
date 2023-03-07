@@ -1,4 +1,4 @@
-package helper
+package token
 
 import (
 	"context"
@@ -24,7 +24,11 @@ type SignedDetails struct {
 	jwt.StandardClaims
 }
 
-func GenerateAllTokens(firstName string, lastName string, email string, userType string, uid string) (signedToken string, signedRefreshToken string) {
+func keyFunction(token *jwt.Token) (interface{}, error) {
+	return []byte(env.SECRET_KEY), nil
+}
+
+func GenerateToken(firstName string, lastName string, email string, userType string, uid string) (signedToken string, signedRefreshToken string) {
 	claims := &SignedDetails{
 		FirstName: firstName,
 		LastName:  lastName,
@@ -52,9 +56,7 @@ func ValidateToken(signedToken string) (claims *SignedDetails, msg string) {
 	token, _ := jwt.ParseWithClaims(
 		signedToken,
 		&SignedDetails{},
-		func(token *jwt.Token) (interface{}, error) {
-			return []byte(env.SECRET_KEY), nil
-		},
+		keyFunction,
 	)
 
 	claims, ok := token.Claims.(*SignedDetails)
@@ -87,7 +89,7 @@ func UpdateAllTokens(signedToken string, signedRefreshToken string, userId strin
 		Upsert: &upsert,
 	}
 
-	_, err := database.Collection(database.Database(), "table").UpdateOne(
+	_, err := database.Collection(database.Connect(), "table").UpdateOne(
 		ctx,
 		filter,
 		bson.D{

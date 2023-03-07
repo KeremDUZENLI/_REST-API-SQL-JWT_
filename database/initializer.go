@@ -10,9 +10,18 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-func Database() *mongo.Client {
+var instance *mongo.Client
+
+func Connect() *mongo.Client {
+	if instance != nil {
+		return instance
+	}
+
 	mongoClient, _ := mongo.NewClient(options.Client().ApplyURI(env.MONGO_URL))
-	connection, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+
+	timeout := 10 * time.Second
+	connection, cancel := context.WithTimeout(context.Background(), timeout)
+
 	defer cancel()
 
 	mongoClient.Connect(connection)

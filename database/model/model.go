@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/go-playground/validator/v10"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 
@@ -31,9 +32,13 @@ func (p Person) IsValidEmail(email string) bool { return email == *p.Email }
 
 func (p Person) IsValidPassword(password string) bool { return Verify(password, *p.Password) }
 
+func (p Person) IsNotExist(ctx context.Context) bool { return !Amount(ctx, p) }
+
+func (p Person) IsObeyRules() bool { return Validator(p) == nil }
+
 func Find(ctx context.Context, person Person) *Person {
 	var foundPerson Person
-	if err := database.Collection(database.Database(), constants.TABLE).FindOne(ctx, bson.M{"email": person.Email}).Decode(&foundPerson); err != nil {
+	if err := database.Collection(database.Connect(), constants.TABLE).FindOne(ctx, bson.M{"email": person.Email}).Decode(&foundPerson); err != nil {
 		return &person
 	}
 	return &foundPerson
@@ -46,24 +51,15 @@ func Verify(password string, providedPassword string) bool {
 	return true
 }
 
-/*
-func IsValidEmail(c *gin.Context, ctx context.Context, person model.Person, foundPerson *model.Person) bool {
-	if err := database.Collection(database.Database(), constants.TABLE).
-		FindOne(ctx, bson.M{"email": person.Email}).Decode(&foundPerson); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "email is not correct"})
-		return true
+func Amount(ctx context.Context, person Person) bool {
+	number, err := database.Collection(database.Connect(), constants.TABLE).CountDocuments(ctx, bson.M{"email": person.Email})
+	if err != nil {
+		return false
 	}
 
-	return false
+	return number > 0
 }
 
-func IsValidPassword(c *gin.Context, person model.Person, foundPerson model.Person) bool {
-	passwordIsValid, msg := VerifyPassword(*person.Password, *foundPerson.Password)
-
-	if !passwordIsValid {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": msg})
-		return true
-	}
-	return false
+func Validator(person Person) error {
+	return validator.New().Struct(person)
 }
-*/

@@ -8,24 +8,14 @@ import (
 	"jwt-project/common/constants"
 	"jwt-project/database"
 	"jwt-project/database/model"
-	"jwt-project/helper"
+	"jwt-project/middleware/token"
 
 	"github.com/gin-gonic/gin"
-	"github.com/go-playground/validator/v10"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"golang.org/x/crypto/bcrypt"
 )
-
-/*
-func VerifyPassword(password string, providedPassword string) (bool, string) {
-	if err := bcrypt.CompareHashAndPassword([]byte(providedPassword), []byte(password)); err != nil {
-		return false, "password is incorrect"
-	}
-	return true, constants.EMPTY_STRING
-}
-*/
 
 func HashPassword(password string) string {
 	encryptionSize := 14
@@ -33,30 +23,14 @@ func HashPassword(password string) string {
 	return string(bytes)
 }
 
-func Exist(c *gin.Context, ctx context.Context, person model.Person) bool {
-	if count, _ := database.Collection(database.Database(), constants.TABLE).CountDocuments(ctx, bson.M{"email": person.Email}); count > 0 {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "this email already exists"})
-		return true
-	}
-	return false
-}
-
-func IsValid(c *gin.Context, person model.Person) bool {
-	if validationErr := validator.New().Struct(person); validationErr != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "out of rules"})
-		return true
-	}
-	return false
-}
-
 func Update(ctx context.Context, foundPerson model.Person) {
-	token, refreshToken := helper.GenerateAllTokens(*foundPerson.Email, *foundPerson.FirstName, *foundPerson.LastName, *foundPerson.UserType, foundPerson.UserId)
-	helper.UpdateAllTokens(token, refreshToken, foundPerson.UserId)
-	database.Collection(database.Database(), constants.TABLE).FindOne(ctx, bson.M{"userid": foundPerson.UserId}).Decode(&foundPerson)
+	firstToken, refreshToken := token.GenerateToken(*foundPerson.Email, *foundPerson.FirstName, *foundPerson.LastName, *foundPerson.UserType, foundPerson.UserId)
+	token.UpdateAllTokens(firstToken, refreshToken, foundPerson.UserId)
+	database.Collection(database.Connect(), constants.TABLE).FindOne(ctx, bson.M{"userid": foundPerson.UserId}).Decode(&foundPerson)
 }
 
 func InsertNumberInDatabase(c *gin.Context, ctx context.Context, person model.Person) *mongo.InsertOneResult {
-	resultInsertionNumber, _ := database.Collection(database.Database(), constants.TABLE).InsertOne(ctx, person)
+	resultInsertionNumber, _ := database.Collection(database.Connect(), constants.TABLE).InsertOne(ctx, person)
 	return resultInsertionNumber
 }
 
@@ -94,7 +68,7 @@ func Stages(c *gin.Context) (primitive.D, primitive.D, primitive.D) {
 
 func Results(c *gin.Context, ctx context.Context) *mongo.Cursor {
 	matchStage, groupStage, projectStage := Stages(c)
-	result, _ := database.Collection(database.Database(), constants.TABLE).Aggregate(ctx, mongo.Pipeline{
+	result, _ := database.Collection(database.Connect(), constants.TABLE).Aggregate(ctx, mongo.Pipeline{
 		matchStage, groupStage, projectStage,
 	})
 
