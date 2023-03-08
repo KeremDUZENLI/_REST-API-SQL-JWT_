@@ -1,7 +1,9 @@
 package controller
 
 import (
+	"fmt"
 	"jwt-project/database/model"
+	"jwt-project/dto"
 	"jwt-project/service"
 	"net/http"
 
@@ -10,10 +12,11 @@ import (
 )
 
 func SignUp(c *gin.Context) {
-	var person model.Person
-	c.BindJSON(&person)
+	var dtoPerson dto.DtoSignUp
+	c.BindJSON(&dtoPerson)
+	fmt.Println(dtoPerson)
 
-	insert, err := service.InsertInDatabase(c, person)
+	insert, err := service.InsertInDatabase(c, dtoPerson)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
