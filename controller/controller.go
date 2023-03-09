@@ -1,8 +1,6 @@
 package controller
 
 import (
-	"fmt"
-	"jwt-project/database/model"
 	"jwt-project/dto"
 	"jwt-project/service"
 	"net/http"
@@ -14,7 +12,6 @@ import (
 func SignUp(c *gin.Context) {
 	var dtoPerson dto.DtoSignUp
 	c.BindJSON(&dtoPerson)
-	fmt.Println(dtoPerson)
 
 	insert, err := service.InsertInDatabase(c, dtoPerson)
 	if err != nil {
@@ -26,24 +23,24 @@ func SignUp(c *gin.Context) {
 }
 
 func Login(c *gin.Context) {
-	var person model.Person
-	c.BindJSON(&person)
+	var dtoPerson dto.DtoLogIn
+	c.BindJSON(&dtoPerson)
 
-	foundPerson, err := service.FindInDatabase(c, person)
+	foundPerson, err := service.FindInDatabase(c, dtoPerson)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, &foundPerson)
+	c.JSON(http.StatusOK, &foundPerson.ID)
 }
 
 func GetUser(c *gin.Context) {
-	var person model.Person
+	var dtoPerson dto.GetUser
 
 	personId := c.Param("userid")
 
-	person, err := service.GetFromDatabase(c, person, personId)
+	person, err := service.GetFromDatabase(c, dtoPerson, personId)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return

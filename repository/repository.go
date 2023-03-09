@@ -8,7 +8,6 @@ import (
 	"jwt-project/common/constants"
 	"jwt-project/database"
 	"jwt-project/database/model"
-	"jwt-project/middleware/token"
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
@@ -23,13 +22,7 @@ func HashPassword(password string) string {
 	return string(bytes)
 }
 
-func Update(ctx context.Context, foundPerson model.Person) {
-	firstToken, refreshToken := token.GenerateToken(*foundPerson.Email, *foundPerson.FirstName, *foundPerson.LastName, *foundPerson.UserType, foundPerson.UserId)
-	token.UpdateAllTokens(firstToken, refreshToken, foundPerson.UserId)
-	database.Collection(database.Connect(), constants.TABLE).FindOne(ctx, bson.M{"userid": foundPerson.UserId}).Decode(&foundPerson)
-}
-
-func InsertNumberInDatabase(c *gin.Context, ctx context.Context, person model.Person) *mongo.InsertOneResult {
+func InsertNumberInDatabase(c *gin.Context, ctx context.Context, person *model.Person) *mongo.InsertOneResult {
 	resultInsertionNumber, _ := database.Collection(database.Connect(), constants.TABLE).InsertOne(ctx, person)
 	return resultInsertionNumber
 }
