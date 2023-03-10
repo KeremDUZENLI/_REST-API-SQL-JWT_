@@ -16,15 +16,21 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-func HashPassword(password string) string {
+func HashPassword(password string) (string, error) {
 	encryptionSize := 14
-	bytes, _ := bcrypt.GenerateFromPassword([]byte(password), encryptionSize)
-	return string(bytes)
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), encryptionSize)
+	if err != nil {
+		return "", err
+	}
+	return string(bytes), nil
 }
 
-func InsertNumberInDatabase(c *gin.Context, ctx context.Context, person *model.Person) *mongo.InsertOneResult {
-	resultInsertionNumber, _ := database.Collection(database.Connect(), constants.TABLE).InsertOne(ctx, person)
-	return resultInsertionNumber
+func InsertNumberInDatabase(c *gin.Context, ctx context.Context, person *model.Person) (*mongo.InsertOneResult, error) {
+	resultInsertionNumber, err := database.Collection(database.Connect(), constants.TABLE).InsertOne(ctx, person)
+	if err != nil {
+		return &mongo.InsertOneResult{}, err
+	}
+	return resultInsertionNumber, nil
 }
 
 func Stages(c *gin.Context) (primitive.D, primitive.D, primitive.D) {
