@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"errors"
-	"fmt"
 	"jwt-project/common/constants"
 	"jwt-project/database"
 	"jwt-project/database/model"
@@ -21,15 +20,26 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-func setValues(person *model.Person) {
+func setValues(person *model.Person) error {
 	person.ID = primitive.NewObjectID()
-	person.Password = repository.HashPassword(person.Password)
-	token, refreshToken := token.GenerateToken(person.Email, person.FirstName, person.LastName, person.UserType, person.UserId)
+
+	person.Password, _ = repository.HashPassword(person.Password)
+	_, errPassword := repository.HashPassword(person.Password)
+
+	token, refreshToken, errToken := token.GenerateToken(person.Email, person.FirstName, person.LastName, person.UserType, person.UserId)
 	person.Token = token
 	person.RefreshToken = refreshToken
+
 	person.CreatedAt, _ = time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
 	person.UpdatedAt, _ = time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
+
 	person.UserId = person.ID.Hex()
+
+	if errPassword != nil && errToken != nil {
+		return errors.New("error setValues")
+	}
+
+	return nil
 }
 
 func InsertInDatabase(c *gin.Context, dSU dto.DtoSignUp) (*mongo.InsertOneResult, error) {
@@ -37,23 +47,29 @@ func InsertInDatabase(c *gin.Context, dSU dto.DtoSignUp) (*mongo.InsertOneResult
 	defer cancel()
 
 	if !dSU.IsNotExist(c) || !dSU.IsObeyRules() {
-		return &mongo.InsertOneResult{}, errors.New("invalid email or password")
+		return &mongo.InsertOneResult{}, errors.New("email or password either exist or out of rules")
 	}
 
 	aMap := mapper.MapperSignUp(&dSU)
 	setValues(&aMap)
 
-	return repository.InsertNumberInDatabase(c, ctx, &aMap), nil
+	res, err := repository.InsertNumberInDatabase(c, ctx, &aMap)
+	if err != nil {
+		return &mongo.InsertOneResult{}, err
+	}
+
+	return res, nil
 }
 
 // ----------------------------------------------------------------
 
 func update(ctx context.Context, foundPerson model.Person) error {
-	firstToken, refreshToken := token.GenerateToken(foundPerson.Email, foundPerson.FirstName, foundPerson.LastName, foundPerson.UserType, foundPerson.UserId)
+	firstToken, refreshToken, err := token.GenerateToken(foundPerson.Email, foundPerson.FirstName, foundPerson.LastName, foundPerson.UserType, foundPerson.UserId)
 	token.UpdateAllTokens(firstToken, refreshToken, foundPerson.UserId)
 
-	if err := database.Collection(database.Connect(), constants.TABLE).FindOne(ctx, bson.M{"userid": foundPerson.UserId}).Decode(&foundPerson); err != nil {
-		fmt.Println(err)
+	database.Collection(database.Connect(), constants.TABLE).FindOne(ctx, bson.M{"userid": foundPerson.UserId}).Decode(&foundPerson)
+
+	if err != nil {
 		return err
 	}
 
@@ -90,9 +106,6 @@ func GetFromDatabase(c *gin.Context, dGU dto.GetUser, personId string) (model.Pe
 	}
 
 	aMap := mapper.MapperGetUser(&dGU)
-
-	fmt.Println(dGU.UserId)
-	fmt.Println(aMap)
 
 	return aMap, nil
 }

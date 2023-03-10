@@ -17,7 +17,10 @@ func Autheticate() gin.HandlerFunc {
 			return
 		}
 
-		claims, _ := token.ValidateToken(clientToken)
+		claims, msg := token.ValidateToken(clientToken)
+		if msg != "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": msg})
+		}
 
 		setContextClaims(c, claims)
 		c.Next()
