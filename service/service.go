@@ -14,17 +14,42 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"golang.org/x/crypto/bcrypt"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-func setValues(person *model.Person) error {
+type structService struct {
+	mongoRepository repository.InterfaceRepository
+}
+
+type InterfaceService interface {
+	InsertInDatabase(c *gin.Context, dSU dto.DtoSignUp) (*mongo.InsertOneResult, error)
+	FindInDatabase(c *gin.Context, dLI dto.DtoLogIn) (*model.Person, error)
+	GetFromDatabase(c *gin.Context, dGU dto.GetUser, personId string) (model.Person, error)
+	GetallFromDatabase(c *gin.Context, allUsers []primitive.M) ([]primitive.M, error)
+}
+
+func NewService(repository repository.InterfaceRepository) InterfaceService {
+	return &structService{mongoRepository: repository}
+}
+
+func HashPassword(password string) (string, error) {
+	encryptionSize := 14
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), encryptionSize)
+	if err != nil {
+		return "", err
+	}
+	return string(bytes), nil
+}
+
+func (structService) setValues(person *model.Person) error {
 	person.ID = primitive.NewObjectID()
 
-	person.Password, _ = repository.HashPassword(person.Password)
-	_, errPassword := repository.HashPassword(person.Password)
+	person.Password, _ = HashPassword(person.Password)
+	_, errPassword := HashPassword(person.Password)
 
 	token, refreshToken, errToken := token.GenerateToken(person.Email, person.FirstName, person.LastName, person.UserType, person.UserId)
 	person.Token = token
@@ -42,7 +67,7 @@ func setValues(person *model.Person) error {
 	return nil
 }
 
-func InsertInDatabase(c *gin.Context, dSU dto.DtoSignUp) (*mongo.InsertOneResult, error) {
+func (sS structService) InsertInDatabase(c *gin.Context, dSU dto.DtoSignUp) (*mongo.InsertOneResult, error) {
 	var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
 	defer cancel()
 
@@ -51,9 +76,9 @@ func InsertInDatabase(c *gin.Context, dSU dto.DtoSignUp) (*mongo.InsertOneResult
 	}
 
 	aMap := mapper.MapperSignUp(&dSU)
-	setValues(&aMap)
+	sS.setValues(&aMap)
 
-	res, err := repository.InsertNumberInDatabase(c, ctx, &aMap)
+	res, err := sS.mongoRepository.InsertNumberInDatabase(c, ctx, &aMap)
 	if err != nil {
 		return &mongo.InsertOneResult{}, err
 	}
@@ -63,7 +88,7 @@ func InsertInDatabase(c *gin.Context, dSU dto.DtoSignUp) (*mongo.InsertOneResult
 
 // ----------------------------------------------------------------
 
-func update(ctx context.Context, foundPerson model.Person) error {
+func (structService) update(ctx context.Context, foundPerson model.Person) error {
 	firstToken, refreshToken, err := token.GenerateToken(foundPerson.Email, foundPerson.FirstName, foundPerson.LastName, foundPerson.UserType, foundPerson.UserId)
 	token.UpdateAllTokens(firstToken, refreshToken, foundPerson.UserId)
 
@@ -76,7 +101,7 @@ func update(ctx context.Context, foundPerson model.Person) error {
 	return nil
 }
 
-func FindInDatabase(c *gin.Context, dLI dto.DtoLogIn) (*model.Person, error) {
+func (sS structService) FindInDatabase(c *gin.Context, dLI dto.DtoLogIn) (*model.Person, error) {
 	var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
 	defer cancel()
 
@@ -87,13 +112,13 @@ func FindInDatabase(c *gin.Context, dLI dto.DtoLogIn) (*model.Person, error) {
 
 	aMap := mapper.MapperLogin(foundPerson)
 
-	update(ctx, aMap)
+	sS.update(ctx, aMap)
 	return &aMap, nil
 }
 
 // ----------------------------------------------------------------
 
-func GetFromDatabase(c *gin.Context, dGU dto.GetUser, personId string) (model.Person, error) {
+func (structService) GetFromDatabase(c *gin.Context, dGU dto.GetUser, personId string) (model.Person, error) {
 	var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
 	defer cancel()
 
@@ -112,7 +137,7 @@ func GetFromDatabase(c *gin.Context, dGU dto.GetUser, personId string) (model.Pe
 
 // ----------------------------------------------------------------
 
-func GetallFromDatabase(c *gin.Context, allUsers []primitive.M) ([]primitive.M, error) {
+func (sS structService) GetallFromDatabase(c *gin.Context, allUsers []primitive.M) ([]primitive.M, error) {
 	var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
 	defer cancel()
 
@@ -120,6 +145,6 @@ func GetallFromDatabase(c *gin.Context, allUsers []primitive.M) ([]primitive.M, 
 		return []primitive.M{}, err
 	}
 
-	repository.Results(c, ctx).All(ctx, &allUsers)
+	sS.mongoRepository.Results(c, ctx).All(ctx, &allUsers)
 	return allUsers, nil
 }

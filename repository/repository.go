@@ -13,19 +13,21 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
-	"golang.org/x/crypto/bcrypt"
 )
 
-func HashPassword(password string) (string, error) {
-	encryptionSize := 14
-	bytes, err := bcrypt.GenerateFromPassword([]byte(password), encryptionSize)
-	if err != nil {
-		return "", err
-	}
-	return string(bytes), nil
+type structRepository struct{}
+
+type InterfaceRepository interface {
+	InsertNumberInDatabase(c *gin.Context, ctx context.Context, person *model.Person) (*mongo.InsertOneResult, error)
+	Stages(c *gin.Context) (primitive.D, primitive.D, primitive.D)
+	Results(c *gin.Context, ctx context.Context) *mongo.Cursor
 }
 
-func InsertNumberInDatabase(c *gin.Context, ctx context.Context, person *model.Person) (*mongo.InsertOneResult, error) {
+func NewRepository() InterfaceRepository {
+	return &structRepository{}
+}
+
+func (structRepository) InsertNumberInDatabase(c *gin.Context, ctx context.Context, person *model.Person) (*mongo.InsertOneResult, error) {
 	resultInsertionNumber, err := database.Collection(database.Connect(), constants.TABLE).InsertOne(ctx, person)
 	if err != nil {
 		return &mongo.InsertOneResult{}, err
@@ -33,7 +35,7 @@ func InsertNumberInDatabase(c *gin.Context, ctx context.Context, person *model.P
 	return resultInsertionNumber, nil
 }
 
-func Stages(c *gin.Context) (primitive.D, primitive.D, primitive.D) {
+func (structRepository) Stages(c *gin.Context) (primitive.D, primitive.D, primitive.D) {
 	recordPerPage, errorConvertionRecord := strconv.Atoi(c.Query("recordPerPage"))
 	if errorConvertionRecord != nil || recordPerPage < 1 {
 		recordPerPage = 10
@@ -49,24 +51,37 @@ func Stages(c *gin.Context) (primitive.D, primitive.D, primitive.D) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Provide a valid integer start number"})
 	}
 
-	matchStage := bson.D{{"$match", bson.D{{}}}}
+	matchStage := bson.D{{Key: "$match", Value: bson.D{{}}}}
 
-	groupStage := bson.D{{"$group", bson.D{
-		{"_id", bson.D{{"_id", "null"}}},
-		{"total_count", bson.D{{"$sum", 1}}},
-		{"data", bson.D{{"$push", "$$ROOT"}}}}}}
+	groupStage := bson.D{{Key: "$group", Value: bson.D{
+		{Key: "_id", Value: bson.D{{Key: "_id", Value: "null"}}},
+		{Key: "total_count", Value: bson.D{{Key: "$sum", Value: 1}}},
+		{Key: "data", Value: bson.D{{Key: "$push", Value: "$$ROOT"}}}}}}
 
 	projectStage := bson.D{
-		{"$project", bson.D{
-			{"_id", 0},
-			{"total_count", 1},
-			{"user_items", bson.D{{"$slice", []interface{}{"$data", startIndex, recordPerPage}}}}}}}
+		{Key: "$project", Value: bson.D{
+			{Key: "_id", Value: 0},
+			{Key: "total_count", Value: 1},
+			{Key: "user_items", Value: bson.D{{Key: "$slice", Value: []interface{}{"$data", startIndex, recordPerPage}}}}}}}
+
+	/*
+		groupStage := bson.D{{Key: "$group", Value: bson.D{
+			{"_id", bson.D{{"_id", "null"}}},
+			{Key: "total_count", Value: bson.D{{Key: "$sum", Value: 1}}},
+			{"data", bson.D{{"$push", "$$ROOT"}}}}}}
+
+		projectStage := bson.D{
+			{"$project", bson.D{
+				{"_id", 0},
+				{"total_count", 1},
+				{"user_items", bson.D{{"$slice", []interface{}{"$data", startIndex, recordPerPage}}}}}}}
+	*/
 
 	return matchStage, groupStage, projectStage
 }
 
-func Results(c *gin.Context, ctx context.Context) *mongo.Cursor {
-	matchStage, groupStage, projectStage := Stages(c)
+func (sR structRepository) Results(c *gin.Context, ctx context.Context) *mongo.Cursor {
+	matchStage, groupStage, projectStage := sR.Stages(c)
 	result, _ := database.Collection(database.Connect(), constants.TABLE).Aggregate(ctx, mongo.Pipeline{
 		matchStage, groupStage, projectStage,
 	})
