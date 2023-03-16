@@ -10,23 +10,25 @@ import (
 )
 
 type structController struct {
-	service service.InterfaceService
+	service service.IService
 }
 
-type InterfaceController interface {
+type IController interface {
 	SignUp(c *gin.Context)
 	Login(c *gin.Context)
 	GetUser(c *gin.Context)
 	GetUsers(c *gin.Context)
 }
 
-func NewController(sIS service.InterfaceService) InterfaceController {
+func NewController(sIS service.IService) IController {
 	return &structController{service: sIS}
 }
 
 func (sC structController) SignUp(c *gin.Context) {
 	var dtoPerson dto.DtoSignUp
-	c.BindJSON(&dtoPerson)
+	if err := c.BindJSON(&dtoPerson); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Couldn't bind!"})
+	}
 
 	insert, err := sC.service.InsertInDatabase(c, dtoPerson)
 	if err != nil {
@@ -37,24 +39,11 @@ func (sC structController) SignUp(c *gin.Context) {
 	c.JSON(http.StatusOK, insert)
 }
 
-/*
-func SignUp(c *gin.Context) {
-	var dtoPerson dto.DtoSignUp
-	c.BindJSON(&dtoPerson)
-
-	insert, err := service.InsertInDatabase(c, dtoPerson)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, insert)
-}
-*/
-
 func (sC structController) Login(c *gin.Context) {
 	var dtoPerson dto.DtoLogIn
-	c.BindJSON(&dtoPerson)
+	if err := c.BindJSON(&dtoPerson); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Couldn't bind!"})
+	}
 
 	foundPerson, err := sC.service.FindInDatabase(c, dtoPerson)
 	if err != nil {
@@ -64,21 +53,6 @@ func (sC structController) Login(c *gin.Context) {
 
 	c.JSON(http.StatusOK, &foundPerson.ID)
 }
-
-/*
-func Login(c *gin.Context) {
-	var dtoPerson dto.DtoLogIn
-	c.BindJSON(&dtoPerson)
-
-	foundPerson, err := service.FindInDatabase(c, dtoPerson)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, &foundPerson.ID)
-}
-*/
 
 func (sC structController) GetUser(c *gin.Context) {
 	var dtoPerson dto.GetUser
@@ -94,22 +68,6 @@ func (sC structController) GetUser(c *gin.Context) {
 	c.JSON(http.StatusOK, person)
 }
 
-/*
-func GetUser(c *gin.Context) {
-	var dtoPerson dto.GetUser
-
-	personId := c.Param("userid")
-
-	person, err := service.GetFromDatabase(c, dtoPerson, personId)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, person)
-}
-*/
-
 func (sC structController) GetUsers(c *gin.Context) {
 	var allUsers []primitive.M
 
@@ -121,16 +79,3 @@ func (sC structController) GetUsers(c *gin.Context) {
 
 	c.JSON(http.StatusOK, allUsersList)
 }
-
-/*
-func GetUsers(c *gin.Context) {
-	var allUsers []primitive.M
-
-	allUsersList, err := service.GetallFromDatabase(c, allUsers)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-	}
-
-	c.JSON(http.StatusOK, allUsersList)
-}
-*/

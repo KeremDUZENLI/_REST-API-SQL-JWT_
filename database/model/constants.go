@@ -1,4 +1,4 @@
-package constants
+package model
 
 const (
 	EMPTY_STRING string = ""

@@ -3,18 +3,17 @@ package service
 import (
 	"context"
 	"errors"
-	"jwt-project/common/constants"
 	"jwt-project/database"
 	"jwt-project/database/model"
 	"jwt-project/dto"
 	"jwt-project/dto/mapper"
+	"jwt-project/middleware"
 	"jwt-project/middleware/auth"
 	"jwt-project/middleware/token"
 	"jwt-project/repository"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"golang.org/x/crypto/bcrypt"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -22,34 +21,27 @@ import (
 )
 
 type structService struct {
-	mongoRepository repository.InterfaceRepository
+	mongoRepository repository.IRepository
 }
 
-type InterfaceService interface {
+type IService interface {
 	InsertInDatabase(c *gin.Context, dSU dto.DtoSignUp) (*mongo.InsertOneResult, error)
 	FindInDatabase(c *gin.Context, dLI dto.DtoLogIn) (*model.Person, error)
 	GetFromDatabase(c *gin.Context, dGU dto.GetUser, personId string) (model.Person, error)
 	GetallFromDatabase(c *gin.Context, allUsers []primitive.M) ([]primitive.M, error)
 }
 
-func NewService(repository repository.InterfaceRepository) InterfaceService {
+func NewService(repository repository.IRepository) IService {
 	return &structService{mongoRepository: repository}
 }
 
-func HashPassword(password string) (string, error) {
-	encryptionSize := 14
-	bytes, err := bcrypt.GenerateFromPassword([]byte(password), encryptionSize)
-	if err != nil {
-		return "", err
-	}
-	return string(bytes), nil
-}
+// SignUp----------------------------------------------------------------
 
 func (structService) setValues(person *model.Person) error {
 	person.ID = primitive.NewObjectID()
 
-	person.Password, _ = HashPassword(person.Password)
-	_, errPassword := HashPassword(person.Password)
+	person.Password, _ = middleware.HashPassword(person.Password)
+	_, errPassword := middleware.HashPassword(person.Password)
 
 	token, refreshToken, errToken := token.GenerateToken(person.Email, person.FirstName, person.LastName, person.UserType, person.UserId)
 	person.Token = token
@@ -86,13 +78,13 @@ func (sS structService) InsertInDatabase(c *gin.Context, dSU dto.DtoSignUp) (*mo
 	return res, nil
 }
 
-// ----------------------------------------------------------------
+// Login----------------------------------------------------------------
 
 func (structService) update(ctx context.Context, foundPerson model.Person) error {
 	firstToken, refreshToken, err := token.GenerateToken(foundPerson.Email, foundPerson.FirstName, foundPerson.LastName, foundPerson.UserType, foundPerson.UserId)
 	token.UpdateAllTokens(firstToken, refreshToken, foundPerson.UserId)
 
-	database.Collection(database.Connect(), constants.TABLE).FindOne(ctx, bson.M{"userid": foundPerson.UserId}).Decode(&foundPerson)
+	database.Collection(database.Connect(), model.TABLE).FindOne(ctx, bson.M{"userid": foundPerson.UserId}).Decode(&foundPerson)
 
 	if err != nil {
 		return err
@@ -101,11 +93,19 @@ func (structService) update(ctx context.Context, foundPerson model.Person) error
 	return nil
 }
 
+func find(ctx context.Context, d dto.DtoLogIn) *dto.DtoLogIn {
+	var foundPerson dto.DtoLogIn
+	if err := database.Collection(database.Connect(), model.TABLE).FindOne(ctx, bson.M{"email": d.Email}).Decode(&foundPerson); err != nil {
+		return &d
+	}
+	return &foundPerson
+}
+
 func (sS structService) FindInDatabase(c *gin.Context, dLI dto.DtoLogIn) (*model.Person, error) {
 	var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
 	defer cancel()
 
-	foundPerson := dto.Find(ctx, dLI)
+	foundPerson := find(ctx, dLI)
 	if !foundPerson.IsValidEmail(dLI.Email) || !foundPerson.IsValidPassword(dLI.Password) {
 		return &model.Person{}, errors.New("invalid email or password")
 	}
@@ -116,7 +116,7 @@ func (sS structService) FindInDatabase(c *gin.Context, dLI dto.DtoLogIn) (*model
 	return &aMap, nil
 }
 
-// ----------------------------------------------------------------
+// GetUser----------------------------------------------------------------
 
 func (structService) GetFromDatabase(c *gin.Context, dGU dto.GetUser, personId string) (model.Person, error) {
 	var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
@@ -126,7 +126,7 @@ func (structService) GetFromDatabase(c *gin.Context, dGU dto.GetUser, personId s
 		return model.Person{}, err
 	}
 
-	if err := database.Collection(database.Connect(), constants.TABLE).FindOne(ctx, bson.M{"userid": personId}).Decode(&dGU); err != nil {
+	if err := database.Collection(database.Connect(), model.TABLE).FindOne(ctx, bson.M{"userid": personId}).Decode(&dGU); err != nil {
 		return model.Person{}, err
 	}
 
@@ -135,13 +135,13 @@ func (structService) GetFromDatabase(c *gin.Context, dGU dto.GetUser, personId s
 	return aMap, nil
 }
 
-// ----------------------------------------------------------------
+// GetUsers----------------------------------------------------------------
 
 func (sS structService) GetallFromDatabase(c *gin.Context, allUsers []primitive.M) ([]primitive.M, error) {
 	var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
 	defer cancel()
 
-	if err := auth.CheckPersonType(c, constants.ADMIN); err != nil {
+	if err := auth.CheckPersonType(c, model.ADMIN); err != nil {
 		return []primitive.M{}, err
 	}
 

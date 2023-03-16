@@ -18,16 +18,14 @@ func main() {
 	port := os.Getenv("PORT")
 	url := ":" + port
 
-	// routes.Setup().Run(url)
 	router.Run(url)
 }
 
-func setupAllDependencies() routes.InterfaceRoutes {
+func setupAllDependencies() routes.IRouter {
 	repository := repository.NewRepository()
 	service := service.NewService(repository)
 	controller := controller.NewController(service)
 	router := routes.NewRouter(controller)
 
-	router.Setup()
 	return router
 }

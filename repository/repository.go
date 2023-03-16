@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"strconv"
 
-	"jwt-project/common/constants"
 	"jwt-project/database"
 	"jwt-project/database/model"
 
@@ -17,18 +16,18 @@ import (
 
 type structRepository struct{}
 
-type InterfaceRepository interface {
+type IRepository interface {
 	InsertNumberInDatabase(c *gin.Context, ctx context.Context, person *model.Person) (*mongo.InsertOneResult, error)
 	Stages(c *gin.Context) (primitive.D, primitive.D, primitive.D)
 	Results(c *gin.Context, ctx context.Context) *mongo.Cursor
 }
 
-func NewRepository() InterfaceRepository {
+func NewRepository() IRepository {
 	return &structRepository{}
 }
 
 func (structRepository) InsertNumberInDatabase(c *gin.Context, ctx context.Context, person *model.Person) (*mongo.InsertOneResult, error) {
-	resultInsertionNumber, err := database.Collection(database.Connect(), constants.TABLE).InsertOne(ctx, person)
+	resultInsertionNumber, err := database.Collection(database.Connect(), model.TABLE).InsertOne(ctx, person)
 	if err != nil {
 		return &mongo.InsertOneResult{}, err
 	}
@@ -64,25 +63,12 @@ func (structRepository) Stages(c *gin.Context) (primitive.D, primitive.D, primit
 			{Key: "total_count", Value: 1},
 			{Key: "user_items", Value: bson.D{{Key: "$slice", Value: []interface{}{"$data", startIndex, recordPerPage}}}}}}}
 
-	/*
-		groupStage := bson.D{{Key: "$group", Value: bson.D{
-			{"_id", bson.D{{"_id", "null"}}},
-			{Key: "total_count", Value: bson.D{{Key: "$sum", Value: 1}}},
-			{"data", bson.D{{"$push", "$$ROOT"}}}}}}
-
-		projectStage := bson.D{
-			{"$project", bson.D{
-				{"_id", 0},
-				{"total_count", 1},
-				{"user_items", bson.D{{"$slice", []interface{}{"$data", startIndex, recordPerPage}}}}}}}
-	*/
-
 	return matchStage, groupStage, projectStage
 }
 
 func (sR structRepository) Results(c *gin.Context, ctx context.Context) *mongo.Cursor {
 	matchStage, groupStage, projectStage := sR.Stages(c)
-	result, _ := database.Collection(database.Connect(), constants.TABLE).Aggregate(ctx, mongo.Pipeline{
+	result, _ := database.Collection(database.Connect(), model.TABLE).Aggregate(ctx, mongo.Pipeline{
 		matchStage, groupStage, projectStage,
 	})
 

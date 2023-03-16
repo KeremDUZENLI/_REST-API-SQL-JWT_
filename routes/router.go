@@ -7,37 +7,27 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type structRoutes struct {
+type structRouter struct {
 	engine     *gin.Engine
-	controller controller.InterfaceController
+	controller controller.IController
 }
 
-type InterfaceRoutes interface {
-	Setup()
+type IRouter interface {
 	Run(string)
 }
 
-func NewRouter(cIC controller.InterfaceController) InterfaceRoutes {
-	return &structRoutes{controller: cIC}
-}
-
-func (r *structRoutes) Run(serverHost string) {
-	r.engine.Run(serverHost)
-}
-
-/*
-func Setup() *gin.Engine {
-	router := gin.New()
-	router.Use(gin.Logger())
-
-	AuthenticationRoutes(router)
-	PersonRoutes(router)
+func NewRouter(cIC controller.IController) IRouter {
+	router := &structRouter{controller: cIC}
+	router.setup()
 
 	return router
 }
-*/
 
-func (r *structRoutes) Setup() {
+func (r *structRouter) Run(serverHost string) {
+	r.engine.Run(serverHost)
+}
+
+func (r *structRouter) setup() {
 	r.engine = gin.New()
 
 	r.engine.Use(gin.Logger())
@@ -46,25 +36,12 @@ func (r *structRoutes) Setup() {
 	r.personRoutes()
 }
 
-/*
-func AuthenticationRoutes(routes *gin.Engine) {
-	routes.POST("/person/signup", controller.SignUp)
-	routes.POST("/person/login", controller.Login)
-}
-
-func PersonRoutes(routes *gin.Engine) {
-	routes.Use(middleware.Autheticate())
-	routes.GET("/person/:userid", controller.GetUser)
-	routes.GET("/personall", controller.GetUsers)
-}
-*/
-
-func (r *structRoutes) authenticationRoutes() {
+func (r *structRouter) authenticationRoutes() {
 	r.engine.POST("/person/signup", r.controller.SignUp)
 	r.engine.POST("/person/login", r.controller.Login)
 }
 
-func (r *structRoutes) personRoutes() {
+func (r *structRouter) personRoutes() {
 	r.engine.Use(middleware.Autheticate())
 	r.engine.GET("/person/:userid", r.controller.GetUser)
 	r.engine.GET("/personall", r.controller.GetUsers)
