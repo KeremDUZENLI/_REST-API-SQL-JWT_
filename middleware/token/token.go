@@ -2,7 +2,6 @@ package token
 
 import (
 	"context"
-	"errors"
 	"log"
 	"time"
 
@@ -30,7 +29,7 @@ func keyFunction(token *jwt.Token) (interface{}, error) {
 	return []byte(env.SECRET_KEY), nil
 }
 
-func GenerateToken(firstName string, lastName string, email string, userType string, uid string) (string, string, error) {
+func GenerateToken(firstName string, lastName string, email string, userType string, uid string) (token string, refreshToken string, err error) {
 	var expiresAt int64 = time.Now().Local().Add(time.Hour * time.Duration(24)).Unix()
 
 	claims := &SignedDetails{
@@ -50,14 +49,17 @@ func GenerateToken(firstName string, lastName string, email string, userType str
 		},
 	}
 
-	token, errToken := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte(env.SECRET_KEY))
-	refreshToken, errRefreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims).SignedString([]byte(env.SECRET_KEY))
-
-	if (errToken != nil) && (errRefreshToken != nil) {
-		return model.EMPTY_STRING, model.EMPTY_STRING, errors.New("error GenerateToken")
+	if token, err = jwt.NewWithClaims(jwt.SigningMethodHS256, claims).
+		SignedString([]byte(env.SECRET_KEY)); err != nil {
+		return
 	}
 
-	return token, refreshToken, nil
+	if refreshToken, err = jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims).
+		SignedString([]byte(env.SECRET_KEY)); err != nil {
+		return
+	}
+
+	return
 }
 
 func ValidateToken(signedToken string) (claims *SignedDetails, msg string) {
