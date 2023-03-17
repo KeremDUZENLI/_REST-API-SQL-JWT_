@@ -31,6 +31,8 @@ func keyFunction(token *jwt.Token) (interface{}, error) {
 }
 
 func GenerateToken(firstName string, lastName string, email string, userType string, uid string) (string, string, error) {
+	var expiresAt int64 = time.Now().Local().Add(time.Hour * time.Duration(24)).Unix()
+
 	claims := &SignedDetails{
 		FirstName: firstName,
 		LastName:  lastName,
@@ -38,13 +40,13 @@ func GenerateToken(firstName string, lastName string, email string, userType str
 		UserType:  userType,
 		Uid:       uid,
 		StandardClaims: jwt.StandardClaims{
-			ExpiresAt: time.Now().Local().Add(time.Hour * time.Duration(24)).Unix(),
+			ExpiresAt: expiresAt,
 		},
 	}
 
 	refreshClaims := &SignedDetails{
 		StandardClaims: jwt.StandardClaims{
-			ExpiresAt: time.Now().Local().Add(time.Hour * time.Duration(24)).Unix(),
+			ExpiresAt: expiresAt,
 		},
 	}
 
