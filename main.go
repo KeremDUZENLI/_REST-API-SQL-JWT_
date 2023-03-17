@@ -1,8 +1,6 @@
 package main
 
 import (
-	"os"
-
 	"jwt-project/common/env"
 	"jwt-project/controller"
 	"jwt-project/repository"
@@ -15,10 +13,7 @@ func main() {
 	env.Load()
 	router := setupAllDependencies()
 
-	port := os.Getenv("PORT")
-	url := ":" + port
-
-	router.Run(url)
+	router.Run(env.URL)
 }
 
 func setupAllDependencies() routes.IRouter {

@@ -51,3 +51,29 @@ func MapperGetUser(d *dto.GetUser) model.Person {
 		UpdatedAt:    d.UpdatedAt,
 	}
 }
+
+func MapperSignUpLogin(d *dto.DtoSignUp) dto.DtoLogIn {
+	return dto.DtoLogIn{
+		ID:           d.ID,
+		Password:     d.Password,
+		Token:        d.Token,
+		RefreshToken: d.RefreshToken,
+		UpdatedAt:    d.UpdatedAt,
+		UserId:       d.UserId,
+
+		Email: d.Email,
+	}
+}
+
+func MapperLoginSignUp(d *dto.DtoLogIn) dto.DtoSignUp {
+	return dto.DtoSignUp{
+		Password: d.Password,
+		Email:    d.Email,
+
+		ID:           d.ID,
+		Token:        d.Token,
+		RefreshToken: d.RefreshToken,
+		UpdatedAt:    d.UpdatedAt,
+		UserId:       d.UserId,
+	}
+}

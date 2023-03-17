@@ -1,6 +1,8 @@
 package middleware
 
 import (
+	"jwt-project/database/model"
+
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -8,7 +10,7 @@ func HashPassword(password string) (string, error) {
 	encryptionSize := 14
 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), encryptionSize)
 	if err != nil {
-		return "", err
+		return model.EMPTY_STRING, err
 	}
 	return string(bytes), nil
 }

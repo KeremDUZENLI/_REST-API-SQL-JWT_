@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"jwt-project/database"
+	"jwt-project/database/model"
 
 	"jwt-project/common/env"
 
@@ -51,7 +52,7 @@ func GenerateToken(firstName string, lastName string, email string, userType str
 	refreshToken, errRefreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims).SignedString([]byte(env.SECRET_KEY))
 
 	if (errToken != nil) && (errRefreshToken != nil) {
-		return "", "", errors.New("error GenerateToken")
+		return model.EMPTY_STRING, model.EMPTY_STRING, errors.New("error GenerateToken")
 	}
 
 	return token, refreshToken, nil
@@ -74,14 +75,16 @@ func ValidateToken(signedToken string) (claims *SignedDetails, msg string) {
 }
 
 func UpdateAllTokens(signedToken string, signedRefreshToken string, userId string) {
-	var ctx, _ = context.WithTimeout(context.Background(), 100*time.Second)
+	var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
+	defer cancel()
+
 	var updateObj primitive.D
 
-	updateObj = append(updateObj, bson.E{"token", signedToken})
-	updateObj = append(updateObj, bson.E{"refreshtoken", signedRefreshToken})
+	updateObj = append(updateObj, bson.E{Key: "token", Value: signedToken})
+	updateObj = append(updateObj, bson.E{Key: "refreshtoken", Value: signedRefreshToken})
 
 	Updated_at, _ := time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
-	updateObj = append(updateObj, bson.E{"updatedat", Updated_at})
+	updateObj = append(updateObj, bson.E{Key: "updatedat", Value: Updated_at})
 
 	upsert := true
 	filter := bson.M{"userid": userId}
@@ -89,11 +92,11 @@ func UpdateAllTokens(signedToken string, signedRefreshToken string, userId strin
 		Upsert: &upsert,
 	}
 
-	_, err := database.Collection(database.Connect(), "table").UpdateOne(
+	_, err := database.Collection(database.Connect(), model.TABLE).UpdateOne(
 		ctx,
 		filter,
 		bson.D{
-			{"$set", updateObj},
+			{Key: "$set", Value: updateObj},
 		},
 		&opt,
 	)

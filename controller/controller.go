@@ -28,6 +28,7 @@ func (sC structController) SignUp(c *gin.Context) {
 	var dtoPerson dto.DtoSignUp
 	if err := c.BindJSON(&dtoPerson); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Couldn't bind!"})
+		return
 	}
 
 	insert, err := sC.service.InsertInDatabase(c, dtoPerson)
@@ -43,6 +44,7 @@ func (sC structController) Login(c *gin.Context) {
 	var dtoPerson dto.DtoLogIn
 	if err := c.BindJSON(&dtoPerson); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Couldn't bind!"})
+		return
 	}
 
 	foundPerson, err := sC.service.FindInDatabase(c, dtoPerson)

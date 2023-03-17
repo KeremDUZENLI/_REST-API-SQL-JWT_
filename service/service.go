@@ -37,6 +37,25 @@ func NewService(repository repository.IRepository) IService {
 
 // SignUp----------------------------------------------------------------
 
+func (sS structService) InsertInDatabase(c *gin.Context, dSU dto.DtoSignUp) (*mongo.InsertOneResult, error) {
+	var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
+	defer cancel()
+
+	if !dSU.IsNotExist(c) || !dSU.IsObeyRules() {
+		return &mongo.InsertOneResult{}, errors.New("email or password either exist or out of rules")
+	}
+
+	aMap := mapper.MapperSignUp(&dSU)
+	sS.setValues(&aMap)
+
+	res, err := sS.mongoRepository.InsertNumberInDatabase(c, ctx, &aMap)
+	if err != nil {
+		return &mongo.InsertOneResult{}, err
+	}
+
+	return res, nil
+}
+
 func (structService) setValues(person *model.Person) error {
 	person.ID = primitive.NewObjectID()
 
@@ -59,26 +78,23 @@ func (structService) setValues(person *model.Person) error {
 	return nil
 }
 
-func (sS structService) InsertInDatabase(c *gin.Context, dSU dto.DtoSignUp) (*mongo.InsertOneResult, error) {
+// Login----------------------------------------------------------------
+
+func (sS structService) FindInDatabase(c *gin.Context, dLI dto.DtoLogIn) (*model.Person, error) {
 	var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
 	defer cancel()
 
-	if !dSU.IsNotExist(c) || !dSU.IsObeyRules() {
-		return &mongo.InsertOneResult{}, errors.New("email or password either exist or out of rules")
+	foundPerson, _ := dto.Find(ctx, dLI)
+
+	if !foundPerson.IsValidEmail(dLI.Email) || !foundPerson.IsValidPassword(dLI.Password) {
+		return &model.Person{}, errors.New("invalid email or password")
 	}
 
-	aMap := mapper.MapperSignUp(&dSU)
-	sS.setValues(&aMap)
+	aMap := mapper.MapperLogin(foundPerson)
 
-	res, err := sS.mongoRepository.InsertNumberInDatabase(c, ctx, &aMap)
-	if err != nil {
-		return &mongo.InsertOneResult{}, err
-	}
-
-	return res, nil
+	sS.update(ctx, aMap)
+	return &aMap, nil
 }
-
-// Login----------------------------------------------------------------
 
 func (structService) update(ctx context.Context, foundPerson model.Person) error {
 	firstToken, refreshToken, err := token.GenerateToken(foundPerson.Email, foundPerson.FirstName, foundPerson.LastName, foundPerson.UserType, foundPerson.UserId)
@@ -91,29 +107,6 @@ func (structService) update(ctx context.Context, foundPerson model.Person) error
 	}
 
 	return nil
-}
-
-func find(ctx context.Context, d dto.DtoLogIn) *dto.DtoLogIn {
-	var foundPerson dto.DtoLogIn
-	if err := database.Collection(database.Connect(), model.TABLE).FindOne(ctx, bson.M{"email": d.Email}).Decode(&foundPerson); err != nil {
-		return &d
-	}
-	return &foundPerson
-}
-
-func (sS structService) FindInDatabase(c *gin.Context, dLI dto.DtoLogIn) (*model.Person, error) {
-	var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
-	defer cancel()
-
-	foundPerson := find(ctx, dLI)
-	if !foundPerson.IsValidEmail(dLI.Email) || !foundPerson.IsValidPassword(dLI.Password) {
-		return &model.Person{}, errors.New("invalid email or password")
-	}
-
-	aMap := mapper.MapperLogin(foundPerson)
-
-	sS.update(ctx, aMap)
-	return &aMap, nil
 }
 
 // GetUser----------------------------------------------------------------

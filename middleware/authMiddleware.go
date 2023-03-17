@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"jwt-project/database/model"
 	"jwt-project/middleware/token"
 	"net/http"
 
@@ -11,15 +12,16 @@ func Autheticate() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		clientToken := c.Request.Header.Get("token")
 
-		if clientToken == "" {
+		if clientToken == model.EMPTY_STRING {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "No Authorization header provided"})
 			c.Abort()
 			return
 		}
 
 		claims, msg := token.ValidateToken(clientToken)
-		if msg != "" {
+		if msg != model.EMPTY_STRING {
 			c.JSON(http.StatusBadRequest, gin.H{"error": msg})
+			return
 		}
 
 		setContextClaims(c, claims)

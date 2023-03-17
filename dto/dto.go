@@ -30,21 +30,37 @@ type DtoSignUp struct {
 	UserType  string `json:"usertype" validate:"required,eq=ADMIN|eq=USER"`
 }
 
-func (d DtoSignUp) IsNotExist(ctx context.Context) bool { return !IsExist(ctx, d) }
+func (d DtoSignUp) IsNotExist(ctx context.Context) bool {
+	aMap := mapperSignUpLogin(d)
+	_, err := Find(ctx, aMap)
+	return err != nil
+}
 
 func (d DtoSignUp) IsObeyRules() bool { return Validator(d) == nil }
 
-func IsExist(ctx context.Context, person DtoSignUp) bool {
-	number, err := database.Collection(database.Connect(), model.TABLE).CountDocuments(ctx, bson.M{"email": person.Email})
-	if err != nil {
-		return false
+func Find(ctx context.Context, d DtoLogIn) (*DtoLogIn, error) {
+	var foundPerson DtoLogIn
+	if err := database.Collection(database.Connect(), model.TABLE).FindOne(ctx, bson.M{"email": d.Email}).Decode(&foundPerson); err != nil {
+		return &d, err
 	}
-
-	return number > 0
+	return &foundPerson, nil
 }
 
 func Validator(d DtoSignUp) error {
 	return validator.New().Struct(d)
+}
+
+func mapperSignUpLogin(d DtoSignUp) DtoLogIn {
+	return DtoLogIn{
+		ID:           d.ID,
+		Password:     d.Password,
+		Token:        d.Token,
+		RefreshToken: d.RefreshToken,
+		UpdatedAt:    d.UpdatedAt,
+		UserId:       d.UserId,
+
+		Email: d.Email,
+	}
 }
 
 // LogIn----------------------------------------------------------------

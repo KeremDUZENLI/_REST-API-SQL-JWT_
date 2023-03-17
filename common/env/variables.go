@@ -11,6 +11,8 @@ var (
 	MONGO_COLLECTION_NAME string
 
 	SECRET_KEY string
+
+	URL string
 )
 
 func Load() {
@@ -20,4 +22,6 @@ func Load() {
 	MONGO_COLLECTION_NAME = os.Getenv("MONGO_COLLECTION_NAME")
 
 	SECRET_KEY = os.Getenv("SECRET_KEY")
+
+	URL = ":" + os.Getenv("PORT")
 }
