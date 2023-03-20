@@ -1,12 +1,12 @@
 package model
 
 const (
-	EMPTY_STRING string = ""
-	EMPTY_SPACE  string = " "
+	NONE  string = ""
+	SPACE string = " "
 )
 
 const (
 	ADMIN string = "ADMIN"
 	USER  string = "USER"
-	TABLE string = "table"
+	TABLE string = "TABLE"
 )

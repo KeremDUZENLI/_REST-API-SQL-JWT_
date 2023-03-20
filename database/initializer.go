@@ -29,7 +29,7 @@ func Connect() *mongo.Client {
 }
 
 func Collection(client *mongo.Client, collectionName string) *mongo.Collection {
-	var createCollection *mongo.Collection = client.Database(env.MONGO_COLLECTION_NAME).Collection(collectionName)
+	var createdCollection *mongo.Collection = client.Database(env.MONGO_COLLECTION_NAME).Collection(collectionName)
 
-	return createCollection
+	return createdCollection
 }

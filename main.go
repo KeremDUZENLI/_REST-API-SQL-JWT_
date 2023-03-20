@@ -13,13 +13,13 @@ func main() {
 	env.Load()
 	router := setupAllDependencies()
 
-	router.Run(env.URL)
+	router.Run(":" + env.URL)
 }
 
-func setupAllDependencies() routes.IRouter {
+func setupAllDependencies() routes.Router {
 	repository := repository.NewRepository()
 	service := service.NewService(repository)
-	controller := controller.NewController(service)
+	controller := controller.NewUser(service)
 	router := routes.NewRouter(controller)
 
 	return router

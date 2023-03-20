@@ -4,6 +4,11 @@ import (
 	"os"
 
 	"github.com/joho/godotenv"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+)
+
+type (
+	LISTUSERS []primitive.M
 )
 
 var (
@@ -23,5 +28,5 @@ func Load() {
 
 	SECRET_KEY = os.Getenv("SECRET_KEY")
 
-	URL = ":" + os.Getenv("PORT")
+	URL = os.Getenv("PORT")
 }

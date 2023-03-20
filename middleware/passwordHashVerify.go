@@ -10,7 +10,7 @@ func HashPassword(password string) (string, error) {
 	encryptionSize := 14
 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), encryptionSize)
 	if err != nil {
-		return model.EMPTY_STRING, err
+		return model.NONE, err
 	}
 	return string(bytes), nil
 }

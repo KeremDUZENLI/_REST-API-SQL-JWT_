@@ -2,10 +2,17 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"strconv"
+	"time"
 
 	"jwt-project/database"
+	"jwt-project/dto"
+	"jwt-project/dto/mapper"
+	"jwt-project/middleware"
+	"jwt-project/middleware/token"
+
 	"jwt-project/database/model"
 
 	"github.com/gin-gonic/gin"
@@ -14,27 +21,53 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-type structRepository struct{}
+type mongoRepository struct{}
 
-type IRepository interface {
-	InsertNumberInDatabase(c *gin.Context, ctx context.Context, person *model.Person) (*mongo.InsertOneResult, error)
-	Stages(c *gin.Context) (primitive.D, primitive.D, primitive.D)
-	Results(c *gin.Context, ctx context.Context) *mongo.Cursor
+type MongoRepository interface {
+	AddUser(c *gin.Context, ctx context.Context, dSU dto.DtoSignUp) (*mongo.InsertOneResult, error)
+	GetStages(c *gin.Context) (primitive.D, primitive.D, primitive.D)
+	GetResults(c *gin.Context, ctx context.Context) *mongo.Cursor
 }
 
-func NewRepository() IRepository {
-	return &structRepository{}
+func NewRepository() MongoRepository {
+	return &mongoRepository{}
 }
 
-func (structRepository) InsertNumberInDatabase(c *gin.Context, ctx context.Context, person *model.Person) (*mongo.InsertOneResult, error) {
-	resultInsertionNumber, err := database.Collection(database.Connect(), model.TABLE).InsertOne(ctx, person)
+func (mongoRepository) AddUser(c *gin.Context, ctx context.Context, dSU dto.DtoSignUp) (*mongo.InsertOneResult, error) {
+	aMap := mapper.MapperSignUp(&dSU)
+
+	setValues(&aMap)
+
+	resultInsertionNumber, err := database.Collection(database.Connect(), model.TABLE).InsertOne(ctx, aMap)
 	if err != nil {
 		return &mongo.InsertOneResult{}, err
 	}
 	return resultInsertionNumber, nil
 }
 
-func (structRepository) Stages(c *gin.Context) (primitive.D, primitive.D, primitive.D) {
+func setValues(person *model.Person) error {
+	person.ID = primitive.NewObjectID()
+
+	person.Password, _ = middleware.HashPassword(person.Password)
+	_, errPassword := middleware.HashPassword(person.Password)
+
+	token, refreshToken, errToken := token.GenerateToken(person.Email, person.FirstName, person.LastName, person.UserType, person.UserId)
+	person.Token = token
+	person.RefreshToken = refreshToken
+
+	person.CreatedAt, _ = time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
+	person.UpdatedAt, _ = time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
+
+	person.UserId = person.ID.Hex()
+
+	if errPassword != nil && errToken != nil {
+		return errors.New("error setValues")
+	}
+
+	return nil
+}
+
+func (mongoRepository) GetStages(c *gin.Context) (primitive.D, primitive.D, primitive.D) {
 	recordPerPage, errorConvertionRecord := strconv.Atoi(c.Query("recordPerPage"))
 	if errorConvertionRecord != nil || recordPerPage < 1 {
 		recordPerPage = 10
@@ -66,8 +99,8 @@ func (structRepository) Stages(c *gin.Context) (primitive.D, primitive.D, primit
 	return matchStage, groupStage, projectStage
 }
 
-func (sR structRepository) Results(c *gin.Context, ctx context.Context) *mongo.Cursor {
-	matchStage, groupStage, projectStage := sR.Stages(c)
+func (sR mongoRepository) GetResults(c *gin.Context, ctx context.Context) *mongo.Cursor {
+	matchStage, groupStage, projectStage := sR.GetStages(c)
 	result, _ := database.Collection(database.Connect(), model.TABLE).Aggregate(ctx, mongo.Pipeline{
 		matchStage, groupStage, projectStage,
 	})
