@@ -53,36 +53,3 @@ func setContextClaims(c *gin.Context, claims *token.SignedDetails) {
 	c.Set("uid", claims.Uid)
 	c.Next()
 }
-
-/*
-func Authenticate() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		clientToken := c.Request.Header.Get("token")
-
-		if clientToken == model.NONE {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "No Authorization header provided"})
-			c.Abort()
-			return
-		}
-
-		claims, msg := token.ValidateToken(clientToken)
-		if msg != model.NONE {
-			c.JSON(http.StatusBadRequest, gin.H{"error": msg})
-			c.Abort()
-			return
-		}
-
-		setContextClaims(c, claims)
-		c.Next()
-	}
-}
-
-func setContextClaims(c *gin.Context, claims *token.SignedDetails) {
-	c.Set("first_name", claims.FirstName)
-	c.Set("last_name", claims.LastName)
-	c.Set("email", claims.Email)
-	c.Set("usertype", claims.UserType)
-	c.Set("uid", claims.Uid)
-	c.Next()
-}
-*/
