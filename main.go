@@ -1,24 +1,26 @@
 package main
 
 import (
-	"os"
-
-	"github.com/gin-gonic/gin"
-	"github.com/joho/godotenv"
+	"jwt-project/common/env"
+	"jwt-project/controller"
+	"jwt-project/repository"
+	"jwt-project/service"
 
 	"jwt-project/routes"
 )
 
 func main() {
-	godotenv.Load(".env")
+	env.Load()
+	router := setupAllDependencies()
 
-	port := os.Getenv("PORT")
+	router.Run(":" + env.URL)
+}
 
-	router := gin.New()
-	router.Use(gin.Logger())
+func setupAllDependencies() routes.Router {
+	repository := repository.NewRepository()
+	service := service.NewService(repository)
+	controller := controller.NewUser(service)
+	router := routes.NewRouter(controller)
 
-	routes.AuthenticationRoutes(router)
-	routes.PersonRoutes(router)
-
-	router.Run(":" + port)
+	return router
 }

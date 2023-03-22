@@ -1,9 +1,11 @@
-package helper
+package auth
 
 import (
 	"errors"
 
 	"github.com/gin-gonic/gin"
+
+	"jwt-project/database/model"
 )
 
 func CheckPersonType(c *gin.Context, role string) (err error) {
@@ -23,7 +25,7 @@ func MatchPersonTypeToUid(c *gin.Context, userId string) (err error) {
 	uid := c.GetString("uid")
 	err = nil
 
-	if userType == "USER" && uid != userId {
+	if userType == model.USER && uid != userId {
 		err = errors.New("unauthorized to access this resource")
 		return err
 	}
